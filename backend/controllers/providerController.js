@@ -1,1 +1,0 @@
-// Logic for searching professionals

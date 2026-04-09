@@ -1,1 +1,0 @@
-// Blueprint for booking details
