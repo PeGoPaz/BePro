@@ -1,105 +1,121 @@
-const express = require("express");
-const bcrypt = require("bcrypt");
-const User = require("../models/User");
+import express from "express";
+import bcrypt from "bcrypt";
+import validator from "validator";
+import User from "../models/User.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Register
 router.post("/register", async (req, res) => {
-    try {
-        const { name, email, password, role } = req.body;
+  try {
+    const { name, email, password, role } = req.body;
 
-        if (!name || !email || !password || !role) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
-
-        if (role !== "customer" && role !== "provider") {
-            return res.status(400).json({ message: "Invalid role" });
-        }
-
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(409).json({ message: "User already exists" });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const newUser = new User({
-            name,
-            email,
-            password: hashedPassword,
-            role
-        });
-
-        await newUser.save();
-
-        return res.status(201).json({
-            message: "User registered successfully"
-        });
-    } catch (error) {
-        console.error("Register error:", error);
-        return res.status(500).json({ message: "Server error" });
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: "All fields are required" });
     }
-});
 
-// Login
-router.post("/login", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        // 1. read email and password
-        // 2. validate
-        if (!email || !password) {
-            return res.status(400).json({ message: "Email and password are required" });
-        }
-
-        // 3. find user
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(401).json({ message: "Invalid credentials" });
-        }
-
-        // 4. compare password
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ message: "Invalid credentials" });
-        }
-        // 5. save session
-        req.session.user = {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role
-        };
-        // 6. set cookie
-        // express-session handles the session cookie automatically
-
-        // 7. return success
-        return res.status(200).json({
-            message: "Login successful",
-            user: req.session.user
-        });
-    } catch (error) {
-        console.error("Login error:", error);
-        return res.status(500).json({ message: "Server error" });
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
     }
-});
 
-//logout
-router.post("/logout", (req, res) => {
-    // 1. destroy session
-    req.session.destroy((err) => {
-        if (err) {
-            console.error("Logout error:", err);
-            return res.status(500).json({ message: "Logout failed" });
-        }
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters long" });
+    }
 
-        // 2. clear cookie
-        res.clearCookie("connect.sid");
+    if (!["user", "enterprise"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
 
-        // 3. return success
-        return res.status(200).json({ message: "Logout successful" });
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(409).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      role,
     });
+
+    return res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
-module.exports = router;
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    req.session.user = {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    };
+
+    return res.status(200).json({
+      message: "Login successful",
+      session: req.session.user,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.session.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+router.post("/logout", requireAuth, (req, res) => {
+  req.session.destroy((error) => {
+    if (error) {
+      return res.status(500).json({ message: "Could not logout", error: error.message });
+    }
+
+    res.clearCookie("bepro.sid");
+    return res.status(200).json({ message: "Logout successful" });
+  });
+});
+
+export default router;

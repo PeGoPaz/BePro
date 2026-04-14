@@ -1,166 +1,252 @@
-const express = require("express");
-const Booking = require("../models/Booking");
-const { isAuthenticated } = require("../middleware/authMiddleware");
+import express from "express";
+import mongoose from "mongoose";
+import Booking from "../models/Booking.js";
+import Enterprise from "../models/Enterprise.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// CREATE booking
-router.post("/", isAuthenticated, async (req, res) => {
-    try {
-        // 1. get providerId, bookingDate, notes from req.body
-        const { providerId, bookingDate, notes } = req.body;
+router.use(requireAuth);
 
-        // 2. validate required fields
-        if (!providerId || !bookingDate) {
-            return res.status(400).json({
-                message: "providerId and bookingDate are required"
-            });
-        }
+router.post("/", requireRole(["user"]), async (req, res) => {
+  try {
+    const { enterpriseId, bookingDate, notes } = req.body;
+    const userId = req.session.user.id;
 
-        // 3. create new booking
-        // customerId should come from req.session.userId
-        const newBooking = new Booking({
-            customerId: req.session.userId,
-            providerId,
-            bookingDate,
-            notes,
-            status: "pending"
-        });
-
-        // 4. save booking
-        await newBooking.save();
-
-        // 5. return 201
-        return res.status(201).json({
-            message: "Booking created successfully",
-            booking: newBooking
-        });
-    } catch (error) {
-        console.error("Create booking error:", error);
-        return res.status(500).json({ message: "Server error" });
+    if (!enterpriseId || !bookingDate) {
+      return res
+        .status(400)
+        .json({ message: "enterpriseId and bookingDate are required" });
     }
+
+    if (
+      !mongoose.Types.ObjectId.isValid(userId) ||
+      !mongoose.Types.ObjectId.isValid(enterpriseId)
+    ) {
+      return res.status(400).json({ message: "Invalid userId or enterpriseId" });
+    }
+
+    const enterpriseService = await Enterprise.findById(enterpriseId);
+    if (!enterpriseService) {
+      return res.status(404).json({ message: "Enterprise service not found" });
+    }
+
+    if (enterpriseService.userId.toString() === userId) {
+      return res.status(400).json({ message: "You cannot book your own service" });
+    }
+
+    const parsedDate = new Date(bookingDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ message: "bookingDate must be a valid date" });
+    }
+
+    const newBooking = await Booking.create({
+      userId,
+      enterpriseId,
+      bookingDate: parsedDate,
+      notes,
+      status: "pending",
+    });
+
+    return res.status(201).json({
+      message: "Booking created successfully",
+      booking: newBooking,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
-// READ all bookings for current user
-router.get("/", isAuthenticated, async (req, res) => {
-    try {
-        // 1. find bookings by current logged-in user
-        // customerId: req.session.userId
-        const bookings = await Booking.find({
-            customerId: req.session.userId
-        });
+router.get("/", async (req, res) => {
+  try {
+    const { enterpriseId } = req.query;
+    const filter = {};
+    const sessionUserId = req.session.user.id;
+    const sessionRole = req.session.user.role;
 
-        // 2. return array of bookings
-        return res.status(200).json(bookings);
-    } catch (error) {
-        console.error("Get bookings error:", error);
-        return res.status(500).json({ message: "Server error" });
+    if (sessionRole === "user") {
+      filter.userId = sessionUserId;
     }
+
+    if (sessionRole === "enterprise") {
+      const ownServices = await Enterprise.find({ userId: sessionUserId }).select("_id");
+      filter.enterpriseId = { $in: ownServices.map((s) => s._id) };
+    }
+
+    if (enterpriseId && sessionRole === "enterprise") {
+      if (!mongoose.Types.ObjectId.isValid(enterpriseId)) {
+        return res.status(400).json({ message: "Invalid enterpriseId query" });
+      }
+
+      const ownService = await Enterprise.findOne({
+        _id: enterpriseId,
+        userId: sessionUserId,
+      }).select("_id");
+      if (!ownService) {
+        return res.status(403).json({ message: "You can only query your own services" });
+      }
+      filter.enterpriseId = ownService._id;
+    }
+
+    const bookings = await Booking.find(filter)
+      .populate("userId", "name email role")
+      .populate("enterpriseId", "subject price")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(bookings);
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
-// READ one booking by id
-router.get("/:id", isAuthenticated, async (req, res) => {
-    try {
-        // 1. get booking id from req.params.id
-        const bookingId = req.params.id;
-
-        // 2. find booking by id
-        const booking = await Booking.findById(bookingId);
-
-        // 3. if not found -> return 404
-        if (!booking) {
-            return res.status(404).json({ message: "Booking not found" });
-        }
-
-        // 4. check ownership
-        // if booking.customerId does not match req.session.userId -> return 403
-        if (booking.customerId.toString() !== req.session.userId) {
-            return res.status(403).json({ message: "Access denied" });
-        }
-
-        // 5. return booking
-        return res.status(200).json(booking);
-    } catch (error) {
-        console.error("Get booking error:", error);
-        return res.status(500).json({ message: "Server error" });
+router.get("/:id", async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ message: "Invalid booking id" });
     }
+
+    const booking = await Booking.findById(bookingId)
+      .populate("userId", "name email role")
+      .populate("enterpriseId", "subject price");
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const sessionUserId = req.session.user.id;
+    const sessionRole = req.session.user.role;
+
+    if (
+      sessionRole === "user" &&
+      booking.userId?._id?.toString() !== sessionUserId
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    if (sessionRole === "enterprise") {
+      const service = await Enterprise.findById(booking.enterpriseId?._id || booking.enterpriseId);
+      if (!service || service.userId.toString() !== sessionUserId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+    }
+
+    return res.status(200).json(booking);
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
-// UPDATE booking
-router.put("/:id", isAuthenticated, async (req, res) => {
-    try {
-        // 1. get booking id from req.params.id
-        const bookingId = req.params.id;
-
-        // 2. get fields from req.body
-        // bookingDate, notes, status
-        const { bookingDate, notes, status } = req.body;
-
-        // 3. find booking by id
-        const booking = await Booking.findById(bookingId);
-
-        // 4. if not found -> return 404
-        if (!booking) {
-            return res.status(404).json({ message: "Booking not found" });
-        }
-
-        // 5. check ownership
-        // if not owner -> return 403
-        if (booking.customerId.toString() !== req.session.userId) {
-            return res.status(403).json({ message: "Access denied" });
-        }
-
-        // 6. update allowed fields only
-        if (bookingDate) booking.bookingDate = bookingDate;
-        if (notes !== undefined) booking.notes = notes;
-        if (status) booking.status = status;
-
-        // 7. save updated booking
-        await booking.save();
-
-        // 8. return success response
-        return res.status(200).json({
-            message: "Booking updated successfully",
-            booking
-        });
-    } catch (error) {
-        console.error("Update booking error:", error);
-        return res.status(500).json({ message: "Server error" });
+router.patch("/:id", requireRole(["user"]), async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ message: "Invalid booking id" });
     }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (booking.userId.toString() !== req.session.user.id) {
+      return res.status(403).json({ message: "You can only update your own booking" });
+    }
+
+    const { bookingDate, notes } = req.body;
+    const updates = {};
+
+    if (bookingDate !== undefined) {
+      const parsedDate = new Date(bookingDate);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: "bookingDate must be a valid date" });
+      }
+      updates.bookingDate = parsedDate;
+    }
+    if (notes !== undefined) updates.notes = notes;
+
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ message: "No allowed fields to update" });
+    }
+
+    const updatedBooking = await Booking.findByIdAndUpdate(bookingId, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    return res.status(200).json({
+      message: "Booking updated successfully",
+      booking: updatedBooking,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
-// DELETE booking
-router.delete("/:id", isAuthenticated, async (req, res) => {
-    try {
-        // 1. get booking id from req.params.id
-        const bookingId = req.params.id;
-
-        // 2. find booking by id
-        const booking = await Booking.findById(bookingId);
-
-        // 3. if not found -> return 404
-        if (!booking) {
-            return res.status(404).json({ message: "Booking not found" });
-        }
-
-        // 4. check ownership
-        // if not owner -> return 403
-        if (booking.customerId.toString() !== req.session.userId) {
-            return res.status(403).json({ message: "Access denied" });
-        }
-
-        // 5. delete booking
-        // or set status = "cancelled"
-        await Booking.findByIdAndDelete(bookingId);
-
-        // 6. return success response
-        return res.status(200).json({
-            message: "Booking deleted successfully"
-        });
-    } catch (error) {
-        console.error("Delete booking error:", error);
-        return res.status(500).json({ message: "Server error" });
+router.delete("/:id", requireRole(["user"]), async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ message: "Invalid booking id" });
     }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (booking.userId.toString() !== req.session.user.id) {
+      return res.status(403).json({ message: "You can only delete your own booking" });
+    }
+
+    const deleted = await Booking.findByIdAndDelete(bookingId);
+    if (!deleted) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    return res.status(200).json({ message: "Booking deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
-module.exports = router;
+router.patch(
+  "/:id/status",
+  requireRole(["enterprise"]),
+  async (req, res) => {
+    try {
+      const bookingId = req.params.id;
+      const { status } = req.body;
+
+      if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+        return res.status(400).json({ message: "Invalid booking id" });
+      }
+
+      if (!["pending", "confirmed", "cancelled"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+
+      const booking = await Booking.findById(bookingId);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      const service = await Enterprise.findById(booking.enterpriseId);
+      if (!service || service.userId.toString() !== req.session.user.id) {
+        return res.status(403).json({ message: "You can only update bookings for your services" });
+      }
+
+      booking.status = status;
+      await booking.save();
+
+      return res.status(200).json({
+        message: "Booking status updated",
+        booking,
+      });
+    } catch (error) {
+      return res.status(500).json({ message: "Server error", error: error.message });
+    }
+  }
+);
+
+export default router;
