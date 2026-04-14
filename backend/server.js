@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
 import 'dotenv/config';
+import enterpriseRoutes from './routes/enterpriseRoutes.js';
 
 // app cpnfig
 const app = express();
@@ -12,7 +14,22 @@ app.use(express.json());
 
 //api endpoints
 app.get('/',(req,res) => {
-    response.send('API WORKING...');
+    res.send('API WORKING...');
 });
 
-app.listen(port, () => console.log(`Listening on localhost:${port}`));
+app.use('/api/enterprise', enterpriseRoutes);
+
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+    throw new Error('MONGO_URI is not configured');
+}
+
+mongoose
+    .connect(mongoUri)
+    .then(() => {
+        app.listen(port, () => console.log(`Listening on localhost:${port}`));
+    })
+    .catch((error) => {
+        console.error('MongoDB connection failed:', error.message);
+        process.exit(1);
+    });
