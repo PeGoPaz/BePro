@@ -1,12 +1,16 @@
 import express from "express";
 import mongoose from "mongoose";
 
-import Tutor from "../models/Enterprise.js";
+import Enterprise from "../models/Enterprise.js";
 import Booking from "../models/Booking.js";
+import User from "../models/User.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+router.use(requireAuth, requireRole(["enterprise"]));
 
 router.post("/:enterpriseId/services", async (req, res) => {
   try {
@@ -17,11 +21,23 @@ router.post("/:enterpriseId/services", async (req, res) => {
       return res.status(400).json({ message: "Invalid enterprise id" });
     }
 
+    if (req.session.user.id !== enterpriseId) {
+      return res.status(403).json({ message: "You can only manage your own services" });
+    }
+
+    const enterpriseUser = await User.findOne({ _id: enterpriseId, role: "enterprise" });
+    if (!enterpriseUser) {
+      return res.status(404).json({ message: "Enterprise user not found" });
+    }
+
     if (!subject || price === undefined || price === null) {
       return res.status(400).json({ message: "subject and price are required" });
     }
+    if (typeof price !== "number" || price < 0) {
+      return res.status(400).json({ message: "price must be a non-negative number" });
+    }
 
-    const service = await Tutor.create({
+    const service = await Enterprise.create({
       userId: enterpriseId,
       subject,
       bio,
@@ -44,8 +60,11 @@ router.get("/:enterpriseId/services", async (req, res) => {
     if (!isValidObjectId(enterpriseId)) {
       return res.status(400).json({ message: "Invalid enterprise id" });
     }
+    if (req.session.user.id !== enterpriseId) {
+      return res.status(403).json({ message: "You can only view your own services" });
+    }
 
-    const services = await Tutor.find({ userId: enterpriseId }).sort({ createdAt: -1 });
+    const services = await Enterprise.find({ userId: enterpriseId }).sort({ createdAt: -1 });
     return res.json(services);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch services", error: error.message });
@@ -58,11 +77,14 @@ router.get("/:enterpriseId/services/:id", async (req, res) => {
     if (!isValidObjectId(enterpriseId)) {
       return res.status(400).json({ message: "Invalid enterprise id" });
     }
+    if (req.session.user.id !== enterpriseId) {
+      return res.status(403).json({ message: "You can only view your own services" });
+    }
     if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid service id" });
     }
 
-    const service = await Tutor.findOne({ _id: id, userId: enterpriseId });
+    const service = await Enterprise.findOne({ _id: id, userId: enterpriseId });
     if (!service) {
       return res.status(404).json({ message: "Service not found" });
     }
@@ -79,6 +101,9 @@ router.patch("/:enterpriseId/services/:id", async (req, res) => {
     if (!isValidObjectId(enterpriseId)) {
       return res.status(400).json({ message: "Invalid enterprise id" });
     }
+    if (req.session.user.id !== enterpriseId) {
+      return res.status(403).json({ message: "You can only update your own services" });
+    }
     if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid service id" });
     }
@@ -91,8 +116,11 @@ router.patch("/:enterpriseId/services/:id", async (req, res) => {
     if (!Object.keys(updates).length) {
       return res.status(400).json({ message: "No valid fields to update" });
     }
+    if (updates.price !== undefined && (typeof updates.price !== "number" || updates.price < 0)) {
+      return res.status(400).json({ message: "price must be a non-negative number" });
+    }
 
-    const service = await Tutor.findOneAndUpdate(
+    const service = await Enterprise.findOneAndUpdate(
       { _id: id, userId: enterpriseId },
       updates,
       { new: true, runValidators: true }
@@ -117,11 +145,14 @@ router.delete("/:enterpriseId/services/:id", async (req, res) => {
     if (!isValidObjectId(enterpriseId)) {
       return res.status(400).json({ message: "Invalid enterprise id" });
     }
+    if (req.session.user.id !== enterpriseId) {
+      return res.status(403).json({ message: "You can only delete your own services" });
+    }
     if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid service id" });
     }
 
-    const deletedService = await Tutor.findOneAndDelete({
+    const deletedService = await Enterprise.findOneAndDelete({
       _id: id,
       userId: enterpriseId,
     });
@@ -141,13 +172,16 @@ router.get("/:enterpriseId/bookings", async (req, res) => {
     if (!isValidObjectId(enterpriseId)) {
       return res.status(400).json({ message: "Invalid enterprise id" });
     }
+    if (req.session.user.id !== enterpriseId) {
+      return res.status(403).json({ message: "You can only view your own bookings" });
+    }
 
-    const services = await Tutor.find({ userId: enterpriseId }).select("_id");
+    const services = await Enterprise.find({ userId: enterpriseId }).select("_id");
     const serviceIds = services.map((service) => service._id);
 
-    const bookings = await Booking.find({ tutorId: { $in: serviceIds } })
-      .populate("studentId", "name email")
-      .populate("tutorId", "subject price")
+    const bookings = await Booking.find({ enterpriseId: { $in: serviceIds } })
+      .populate("userId", "name email")
+      .populate("enterpriseId", "subject price")
       .sort({ createdAt: -1 });
 
     return res.json(bookings);
@@ -162,6 +196,9 @@ router.patch("/:enterpriseId/bookings/:id/status", async (req, res) => {
     if (!isValidObjectId(enterpriseId)) {
       return res.status(400).json({ message: "Invalid enterprise id" });
     }
+    if (req.session.user.id !== enterpriseId) {
+      return res.status(403).json({ message: "You can only update bookings for your own services" });
+    }
     if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid booking id" });
     }
@@ -174,13 +211,13 @@ router.patch("/:enterpriseId/bookings/:id/status", async (req, res) => {
       });
     }
 
-    const booking = await Booking.findById(id).populate("tutorId", "userId");
+    const booking = await Booking.findById(id).populate("enterpriseId", "userId");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (!booking.tutorId || String(booking.tutorId.userId) !== String(enterpriseId)) {
+    if (!booking.enterpriseId || String(booking.enterpriseId.userId) !== String(enterpriseId)) {
       return res.status(403).json({ message: "You cannot modify this booking" });
     }
 

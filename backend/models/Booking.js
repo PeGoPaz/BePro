@@ -1,14 +1,14 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const bookingSchema = new mongoose.Schema({
-    studentId: {
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true
     },
-    tutorId: {
+    enterpriseId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Tutor",
+        ref: "Enterprise",
         required: true
     },
     bookingDate: {
@@ -22,10 +22,13 @@ const bookingSchema = new mongoose.Schema({
     },
     notes: {
         type: String,
-        trim: true
+        trim: true,
+        maxlength: 1000
     }
 }, {
     timestamps: true
 });
 
-module.exports = mongoose.model("Booking", bookingSchema);
+const Booking = mongoose.model("Booking", bookingSchema);
+
+export default Booking;

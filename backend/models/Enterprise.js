@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const tutorSchema = new mongoose.Schema({
+const enterpriseSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -17,7 +17,8 @@ const tutorSchema = new mongoose.Schema({
     },
     price: {
         type: Number,
-        required: true
+        required: true,
+        min: 0
     },
     availability: {
         type: String,
@@ -27,4 +28,6 @@ const tutorSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model("Tutor", tutorSchema);
+const Enterprise = mongoose.model("Enterprise", enterpriseSchema);
+
+export default Enterprise;
