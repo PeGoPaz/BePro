@@ -14,3 +14,5 @@ app.use(express.json());
 app.get('/',(req,res) => {
     response.send('API WORKING...');
 });
+
+app.listen(port, () => console.log(`Listening on localhost:${port}`));
