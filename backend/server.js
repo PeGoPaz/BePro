@@ -12,7 +12,7 @@ app.use(express.json());
 
 //api endpoints
 app.get('/',(req,res) => {
-    response.send('API WORKING...');
+    res.send('API WORKING...');
 });
 
 app.listen(port, () => console.log(`Listening on localhost:${port}`));
