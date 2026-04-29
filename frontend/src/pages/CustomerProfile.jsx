@@ -1,6 +1,8 @@
-import React from 'React'
+// TODO: This is a customer profile page where they manage their details and their appoinments
 
-const export = () => {
+import React from 'react'
+
+const CustomerProfile = () => {
   return (
     <div>
       gosha pidoras
