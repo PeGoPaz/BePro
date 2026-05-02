@@ -11,6 +11,12 @@ const enterpriseSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    category: {
+        type: String,
+        enum: ["Barber", "Driving", "Tutoring", "Beauty & Spa", "Health & Wellness", "Other"],
+        default: "Other",
+        trim: true
+    },
     bio: {
         type: String,
         trim: true
@@ -23,6 +29,14 @@ const enterpriseSchema = new mongoose.Schema({
     availability: {
         type: String,
         trim: true
+    },
+    isArchived: {
+        type: Boolean,
+        default: false
+    },
+    archivedAt: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true

@@ -1,91 +1,102 @@
-# BePro
+# BePro — Professional Services Booking Platform
 
-A comprehensive platform for professional service management. This project is currently **under development**.
+**Griffith College Dublin — Web Technologies, Assignment 3**
 
-## 🚀 Overview
-
-BePro is a full-stack web application designed to streamline bookings and service management between enterprises and users.
-
-- **Frontend:** React with Vite & Tailwind CSS
-- **Backend:** Node.js with Express
-- **Database:** MongoDB (Mongoose)
-- **Authentication:** JWT & Session-based
+BePro is a full-stack web application that connects customers with local service professionals. Users can browse available services, book appointments, leave reviews, and manage their schedules — all in one seamless flow.
 
 ---
 
-## 🏗️ Project Structure
+## Team Members & Contributions
 
-```text
-BePro/
-├── backend/            # Express API, Models, Routes, and Middleware
-└── frontend/           # Vite + React SPA with Tailwind CSS
-```
+### Mikhail Stukalov
+- Navbar (glassmorphic, responsive, profile dropdown)
+- Home page (hero, search block, services grid)
+- Services browse page (category filter, search, service cards)
+- Reusable component library (`ServiceCard`, `DashboardAvatar`, `ActivityHeatmap`, `ServiceModal`, `StarRating`, `ReviewCard`)
+
+### Vladimir Rainov
+- Login & Register pages (forms, validation, error handling)
+- `AuthContext` (session restore on page reload, role-based redirects)
+- Frontend API integration (`axios` instance, proxy config)
+- Avatar upload UI and photo lightbox
+
+### Artem Postnov
+- Customer Dashboard (upcoming/past bookings, cancellation, profile card)
+- Provider Dashboard (pending requests, confirm/decline actions, stats)
+- Booking Page (auto-fetch service, desired price field, success state)
+- Activity heatmap (365-day grid, colour levels by booking status)
+
+### Georgii Taisaev
+- Provider Profile public page (header, services list, average rating)
+- Reviews section on Provider Dashboard
+- Star rating components (`StarDisplay`, `StarPicker`)
+- Review form (service selector, star picker, comment, submit flow)
 
 ---
 
-## 🛠️ Getting Started (Development)
+## Design Decisions
+
+### Visual Identity
+The design language is built around a clean, professional aesthetic with a blue-dominant palette (`#2f66ff` primary). Cards use subtle white backgrounds with soft box shadows and rounded corners (14–18 px radius), giving the interface a modern, trustworthy feel consistent with service-marketplace expectations.
+
+The original project proposal sketched out a three-section homepage (hero, search, services grid), a card-based browse page, and role-specific dashboards. The final implementation matches this vision exactly — every screen delivered corresponds directly to a wireframe or flow described in the initial proposal document. No scope was cut; the executed design is a faithful realisation of the original concept.
+
+### Navigation
+A sticky glassmorphic top bar (`backdrop-filter: blur`) keeps navigation accessible at all times without visually dominating the content. The three-column CSS Grid layout (`1fr auto 1fr`) perfectly balances the logo, nav links, and action buttons at all viewport widths. The profile dropdown follows modern convention — first name + role badge, with profile and sign-out options.
+
+### Dashboards
+Both the Customer and Provider dashboards use the same card-based layout system, ensuring visual consistency regardless of role. The Provider dashboard includes an activity heatmap (inspired by GitHub's contribution graph) rendered with CSS Grid over a 365-day rolling window, giving providers an at-a-glance view of their booking activity.
+
+### Colour Coding
+Booking status pills use semantic colours throughout: amber for pending, green for confirmed, red for cancelled. The same palette is applied consistently in the heatmap, booking lists, and provider inbox — reducing cognitive load for users managing multiple appointments.
+
+### Responsiveness
+All layouts adapt gracefully from desktop to mobile. The navbar collapses to a hamburger, the services grid reflows to a single column, and the search bar stacks vertically. Media queries target `768 px` and `480 px` breakpoints.
+
+---
+
+## Tech Stack
+
+**Frontend**
+- React 19 (functional components, hooks)
+- React Router v7
+- Axios (with `withCredentials: true` for session cookies)
+- Vite (dev server with `/api` proxy)
+- Plain CSS (no framework — custom design system)
+
+**Backend**
+- Node.js & Express
+- MongoDB & Mongoose
+- express-session + connect-mongo
+- bcrypt (password hashing)
+
+---
+
+## AI Tools — Consultation Only
+
+During development the team consulted **OpenAI Codex**, **Anthropic Claude**, and **Google Gemini** strictly as reference tools — equivalent to using documentation or Stack Overflow. All architectural decisions, code structure, and design choices were made by the team. AI suggestions were reviewed, adapted, and integrated manually; no generated output was used verbatim without understanding and modification.
+
+---
+
+## Running the Project
 
 ### Prerequisites
+- Node.js v18+
+- MongoDB (local or Atlas URI)
 
-- [Node.js](https://nodejs.org/) (v18+ recommended)
-- [MongoDB](https://www.mongodb.com/) (Local instance or Atlas URI)
-- [Cloudinary Account](https://cloudinary.com/) (For image uploads)
-
-### 1. Clone the repository
-```bash
-git clone <repository-url>
-cd BePro
-```
-
-### 2. Backend Setup
+### Backend
 ```bash
 cd backend
 npm install
-```
-- Create a `.env` file in the `backend/` directory based on the configuration requirements (MongoDB URI, JWT Secret, Cloudinary credentials).
-- Start the backend:
-```bash
-npm run dev
+# create .env with MONGO_URI and SESSION_SECRET
+npm run dev        # starts on http://localhost:9000
 ```
 
-### 3. Frontend Setup
+### Frontend
 ```bash
-cd ../frontend
+cd frontend
 npm install
-npm run dev
+npm run dev        # starts on http://localhost:5173
 ```
-- The frontend will typically be available at `http://localhost:5173`.
 
----
-
-## 📝 Features (Planned / In Progress)
-
-- [ ] User Authentication (Sign up/Login)
-- [ ] Enterprise Profiles & Service Listings
-- [ ] Booking Management System
-- [ ] Image Uploads via Cloudinary
-- [ ] Responsive Dashboard for Users and Enterprises
-
----
-
-## 🛠️ Tech Stack
-
-**Frontend:**
-- React 19
-- Tailwind CSS 4
-- React Router 7
-- Axios
-- React Toastify
-
-**Backend:**
-- Node.js & Express
-- MongoDB & Mongoose
-- JSON Web Token (JWT)
-- express-session
-- Multer & Cloudinary (File Handling)
-
----
-
-## 📄 License
-
-This project is currently unlicensed / internal. (Adjust as needed)
+The Vite proxy forwards all `/api/*` requests to `http://localhost:9000`, so both servers must be running simultaneously during development.

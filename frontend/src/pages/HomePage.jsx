@@ -1,153 +1,105 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import HomeHero from "../components/HomeHero";
-import ServiceResults from "../components/ServiceResults";
-import ServiceSearchForm from "../components/ServiceSearchForm";
+import ServiceCard from "../components/ServiceCard";
+import api from "../api/index.js";
+import { getCategoryImage } from "../utils/categoryImages";
 
-/*
- * Static service catalogue — placeholder data used for the client-side
- * search demo. Will be replaced by GET /api/services in the next iteration
- * once the API layer is connected to the React client.
- */
-const SERVICES = [
-  {
-    id: "srv-1",
-    title: "Driving Lessons with Michael",
-    category: "driving",
-    location: "Dublin 8",
-    price: 45,
-    rating: 4.9,
-  },
-  {
-    id: "srv-2",
-    title: "Math Tutor – Anna",
-    category: "tutoring",
-    location: "Dublin 2",
-    price: 35,
-    rating: 4.8,
-  },
-  {
-    id: "srv-3",
-    title: "Fade & Beard – Urban Barber",
-    category: "barber",
-    location: "Dublin 1",
-    price: 28,
-    rating: 4.7,
-  },
-  {
-    id: "srv-4",
-    title: "English Tutor – James",
-    category: "tutoring",
-    location: "Dublin 6",
-    price: 32,
-    rating: 4.6,
-  },
-];
+const CATEGORIES = ["All", "Barber", "Driving", "Tutoring", "Beauty & Spa", "Health & Wellness"];
 
-/* HomePage — root landing view; composed of four stacked sections */
 function HomePage() {
-  /* Controlled form state — updated on every input change */
-  const [filters, setFilters] = useState({
-    category: "all",
-    location: "",
-    date: "",
-  });
+  const [category, setCategory] = useState("All");
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
-  /*
-   * activeFilters is null until the user submits the search form.
-   * Keeping it null hides the results section so the page is clean on load.
-   */
-  const [activeFilters, setActiveFilters] = useState(null);
-
-  /* Field-level validation error messages keyed by input name */
-  const [errors, setErrors] = useState({});
-
-  /*
-   * Derive visible services from activeFilters.
-   * Only recomputes when activeFilters changes (i.e. on form submit),
-   * not on every keystroke, so the list never flickers while typing.
-   */
-  const visibleServices = useMemo(() => {
-    if (activeFilters === null) return [];
-
-    return SERVICES.filter((service) => {
-      /* Category: "all" skips the filter */
-      const categoryMatch =
-        activeFilters.category === "all" ||
-        service.category === activeFilters.category;
-
-      /* Location: empty string skips the filter; otherwise case-insensitive substring match */
-      const locationMatch =
-        activeFilters.location.trim() === "" ||
-        service.location
-          .toLowerCase()
-          .includes(activeFilters.location.trim().toLowerCase());
-
-      return categoryMatch && locationMatch;
-    });
-  }, [activeFilters]);
-
-  /* Keep local filter state in sync with each input element */
-  const handleFilterChange = (event) => {
-    const { name, value } = event.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+  const fetchServices = () => {
+    setLoading(true);
+    api.get("/enterprise/services/public")
+      .then((res) => {
+        setServices(res.data.map((s) => ({
+          id: s._id,
+          name: s.subject,
+          author: s.userId?.name ?? "Service Provider",
+          authorId: s.userId?._id ?? null,
+          category: s.category ?? "Other",
+          rating: null,
+          reviews: 0,
+          location: "By arrangement",
+          description: s.bio || "No description provided yet.",
+          price: s.price,
+          availability: s.availability || "Availability not specified",
+          image: getCategoryImage(s.category),
+        })));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
 
-  /* Validate fields, then commit filters to trigger a results update */
-  const handleSearch = (event) => {
-    event.preventDefault();
-    const nextErrors = {};
+  const visible = useMemo(() => {
+    if (category === "All") return services;
+    return services.filter((s) => s.category === category);
+  }, [category, services]);
 
-    /* Location is required — an empty search would return everything */
-    if (!filters.location.trim()) {
-      nextErrors.location = "Please enter a location.";
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!searched) {
+      fetchServices();
+      setSearched(true);
     }
-
-    /* Reject dates in the past to avoid meaningless searches */
-    if (filters.date) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selected = new Date(filters.date);
-      if (selected < today) {
-        nextErrors.date = "Date cannot be in the past.";
-      }
-    }
-
-    setErrors(nextErrors);
-
-    /* Only apply filters when there are no validation errors */
-    if (Object.keys(nextErrors).length === 0) {
-      setActiveFilters(filters);
-    }
+    // if already searched, just re-filter (visible memo updates automatically)
   };
 
   return (
     <>
-      {/* Hero — headline, CTA buttons, and platform stats */}
       <HomeHero />
 
-      {/* Search section — filter inputs; results appear below on submit */}
+      {/* Search section */}
       <section className="search-section">
-        <h2 className="search-section-title">Find your next appointment</h2>
-        <ServiceSearchForm
-          filters={filters}
-          errors={errors}
-          onChange={handleFilterChange}
-          onSubmit={handleSearch}
-        />
+        <h2 className="search-section-title search-section-title-lg">Find your next appointment</h2>
+        <form className="search-bar search-bar-simple" onSubmit={handleSearch} noValidate>
+          <label className="search-field">
+            <span className="search-field-label">Service type</span>
+            <select name="category" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat === "All" ? "All services" : cat}</option>
+              ))}
+            </select>
+          </label>
+          <button className="search-icon-btn" type="submit" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2" />
+              <path d="M16.5 16.5L21 21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </form>
       </section>
 
-      {/*
-       * Results section — only mounted after the first successful search.
-       * Conditional render (not just hidden) so the page feels clean on load.
-       */}
-      {activeFilters !== null && (
-        <section aria-label="Search results">
-          <ServiceResults services={visibleServices} />
+      {/* Services grid — shown only after Search is clicked */}
+      {searched && (
+        <section className="home-services-section">
+          <div className="home-services-head">
+            <h2 className="home-services-title">Available Services</h2>
+            <Link to="/services" className="home-services-see-all">See all →</Link>
+          </div>
+
+          {loading ? (
+            <p className="svc-empty">Loading services…</p>
+          ) : visible.length === 0 ? (
+            <p className="svc-empty">No services in this category yet.</p>
+          ) : (
+            <ul className="svc-grid">
+              {visible.slice(0, 6).map((service) => (
+                <li key={service.id}>
+                  <ServiceCard service={service} />
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
-      {/* CTA band — full-width blue overview for first-time visitors */}
+      {/* CTA band */}
       <section className="cta">
         <p className="overview-eyebrow">Why BePro</p>
         <h2>BePro connects customers and local professionals in one flow.</h2>
@@ -172,14 +124,8 @@ function HomePage() {
         </div>
 
         <div className="overview-actions">
-          {/* Routes visitors to the provider catalogue */}
-          <Link className="button button-light" to="/providers">
-            Find services
-          </Link>
-          {/* Invites new service providers to register */}
-          <Link className="button button-outline-light" to="/register">
-            Join as provider
-          </Link>
+          <Link className="button button-light" to="/services">Find services</Link>
+          <Link className="button button-outline-light" to="/register">Join as provider</Link>
         </div>
       </section>
     </>

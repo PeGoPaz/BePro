@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import AppFooter from "./components/AppFooter";
 import AppHeader from "./components/AppHeader";
 import BookingPage from "./pages/BookingPage";
@@ -7,7 +8,9 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ProviderDashboardPage from "./pages/ProviderDashboardPage";
 import ProviderListingsPage from "./pages/ProviderListingsPage";
+import ProviderProfile from "./pages/ProviderProfile";
 import RegisterPage from "./pages/RegisterPage";
+import ServicesDashboardPage from "./pages/ServicesDashboardPage";
 
 /*
  * MainLayout — shared shell for all pages that show the header and footer.
@@ -26,6 +29,7 @@ function MainLayout({ children }) {
 
 function App() {
   return (
+    <AuthProvider>
     <BrowserRouter>
       <Routes>
         {/* Auth routes — full-screen, no header or footer */}
@@ -35,6 +39,8 @@ function App() {
         {/* Main app routes — wrapped with header and footer */}
         <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
         <Route path="/providers" element={<MainLayout><ProviderListingsPage /></MainLayout>} />
+        <Route path="/providers/:providerId" element={<MainLayout><ProviderProfile /></MainLayout>} />
+        <Route path="/services" element={<MainLayout><ServicesDashboardPage /></MainLayout>} />
         <Route path="/booking" element={<MainLayout><BookingPage /></MainLayout>} />
         <Route
           path="/dashboard/customer"
@@ -46,6 +52,7 @@ function App() {
         />
       </Routes>
     </BrowserRouter>
+    </AuthProvider>
   );
 }
 

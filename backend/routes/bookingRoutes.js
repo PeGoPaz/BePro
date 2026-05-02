@@ -90,7 +90,7 @@ router.get("/", async (req, res) => {
 
     const bookings = await Booking.find(filter)
       .populate("userId", "name email role")
-      .populate("enterpriseId", "subject price")
+      .populate("enterpriseId", "subject price userId")
       .sort({ createdAt: -1 });
 
     return res.status(200).json(bookings);
@@ -108,7 +108,7 @@ router.get("/:id", async (req, res) => {
 
     const booking = await Booking.findById(bookingId)
       .populate("userId", "name email role")
-      .populate("enterpriseId", "subject price");
+      .populate("enterpriseId", "subject price userId");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
