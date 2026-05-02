@@ -1,0 +1,13 @@
+import axios from "axios";
+
+/*
+ * Centralised axios instance.
+ * withCredentials: true → sends the session cookie (bepro.sid) on every request.
+ * The Vite dev-server proxy forwards /api/* to http://localhost:9000.
+ */
+const api = axios.create({
+  baseURL: "/api",
+  withCredentials: true,
+});
+
+export default api;

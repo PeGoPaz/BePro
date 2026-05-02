@@ -47,6 +47,7 @@ router.post("/register", async (req, res) => {
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
+        avatarUrl: newUser.avatarUrl || "",
       },
     });
   } catch (error) {
@@ -77,6 +78,7 @@ router.post("/login", async (req, res) => {
       email: user.email,
       role: user.role,
       name: user.name,
+      avatarUrl: user.avatarUrl || "",
     };
 
     return res.status(200).json({
@@ -87,6 +89,7 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatarUrl: user.avatarUrl || "",
       },
     });
   } catch (error) {
@@ -100,6 +103,40 @@ router.get("/me", requireAuth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+router.patch("/me/avatar", requireAuth, async (req, res) => {
+  try {
+    const { avatarUrl } = req.body;
+
+    if (avatarUrl !== null && typeof avatarUrl !== "string") {
+      return res.status(400).json({ message: "avatarUrl must be a string or null" });
+    }
+
+    const trimmedAvatar = typeof avatarUrl === "string" ? avatarUrl.trim() : "";
+    if (trimmedAvatar && !trimmedAvatar.startsWith("data:image/")) {
+      return res.status(400).json({ message: "avatarUrl must be a valid image data URL" });
+    }
+    if (trimmedAvatar.length > 4_000_000) {
+      return res.status(400).json({ message: "Avatar image is too large" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.session.user.id,
+      { avatarUrl: trimmedAvatar },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    req.session.user.avatarUrl = user.avatarUrl || "";
 
     return res.status(200).json({ user });
   } catch (error) {
