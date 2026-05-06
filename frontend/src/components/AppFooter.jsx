@@ -66,7 +66,7 @@ function AppFooter() {
           <p className="footer-col-title">Support</p>
           <ul className="footer-col-links">
             <li><a href="#">Help Centre</a></li>
-            <li><a href="#">Contact Us</a></li>
+            <li><Link to="/contact">Contact Us</Link></li>
             <li><a href="#">Privacy Policy</a></li>
             <li><a href="#">Terms of Service</a></li>
           </ul>

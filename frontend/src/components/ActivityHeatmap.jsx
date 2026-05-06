@@ -19,7 +19,11 @@ function buildActivityData(bookings, services) {
   const countsByDay = new Map();
 
   bookings.forEach((booking) => {
-    const key = dayKey(booking.bookingDate);
+    const dateSource =
+      booking.status === "confirmed" && booking.confirmedAt
+        ? booking.confirmedAt
+        : booking.createdAt;
+    const key = dayKey(dateSource);
     if (!key) return;
     const cur = countsByDay.get(key) ?? { pending: 0, confirmed: 0, cancelled: 0, servicePosted: 0 };
     if (["pending", "confirmed", "cancelled"].includes(booking.status)) cur[booking.status] += 1;
@@ -76,8 +80,8 @@ function cellClass(cell) {
   }
   const level = (n) => Math.min(n >= 4 ? 4 : n, 4);
   if (cell.servicePosted > 0) return `dash-activity-cell dash-activity-cell-posted-${level(cell.servicePosted)}`;
-  if (cell.confirmed > 0) return `dash-activity-cell dash-activity-cell-confirmed-${level(cell.confirmed)}`;
-  if (cell.cancelled > 0) return `dash-activity-cell dash-activity-cell-cancelled-${level(cell.cancelled)}`;
+  if (cell.confirmed > 0)     return `dash-activity-cell dash-activity-cell-confirmed-${level(cell.confirmed)}`;
+  if (cell.cancelled > 0)     return `dash-activity-cell dash-activity-cell-cancelled-${level(cell.cancelled)}`;
   return `dash-activity-cell dash-activity-cell-pending-${level(cell.pending)}`;
 }
 

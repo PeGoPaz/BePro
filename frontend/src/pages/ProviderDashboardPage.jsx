@@ -70,8 +70,9 @@ function ProviderDashboardPage() {
 
   const updateStatus = async (bookingId, newStatus) => {
     try {
-      await api.patch(`/booking/${bookingId}/status`, { status: newStatus });
-      setBookings((prev) => prev.map((b) => (b._id === bookingId ? { ...b, status: newStatus } : b)));
+      const res = await api.patch(`/booking/${bookingId}/status`, { status: newStatus });
+      const updated = res.data.booking;
+      setBookings((prev) => prev.map((b) => (b._id === bookingId ? { ...b, ...updated } : b)));
     } catch {
       alert("Failed to update booking status.");
     }
@@ -82,8 +83,16 @@ function ProviderDashboardPage() {
     return null;
   }
 
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
   const pending = bookings.filter((b) => b.status === "pending");
-  const confirmed = bookings.filter((b) => b.status === "confirmed");
+  const confirmed = bookings.filter(
+    (b) => b.status === "confirmed" && new Date(b.bookingDate) >= now
+  );
+  const past = bookings.filter(
+    (b) => b.status === "confirmed" && new Date(b.bookingDate) < now
+  );
   const cancelled = bookings.filter((b) => b.status === "cancelled");
   const activeServices = services.filter((s) => !s.isArchived);
   const archivedServices = services.filter((s) => s.isArchived);
@@ -414,6 +423,41 @@ function ProviderDashboardPage() {
                   </div>
                   <span className={`booking-status ${STATUS_CLASSES[b.status]}`}>{STATUS_LABELS[b.status]}</span>
                 </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Appointment history — past confirmed */}
+      {!loadingBookings && past.length > 0 && (
+        <section className="dash-section">
+          <h2 className="dash-section-title">
+            Appointment History
+            <span className="dash-count-badge">{past.length}</span>
+          </h2>
+          <ul className="dash-booking-list">
+            {past.map((b) => (
+              <li key={b._id} className="dash-booking-card dash-booking-card-muted">
+                <div className="dash-booking-top">
+                  <div>
+                    <p className="dash-booking-service">{b.enterpriseId?.subject ?? "Booking"}</p>
+                    <p className="dash-booking-customer">
+                      Customer: <strong>{b.userId?.name ?? "Unknown"}</strong>
+                      {b.userId?.email && (
+                        <span className="dash-booking-customer-email"> · {b.userId.email}</span>
+                      )}
+                    </p>
+                    <p className="dash-booking-date">{formatDate(b.bookingDate)}</p>
+                    {b.confirmedAt && (
+                      <p className="dash-booking-confirmed-at">
+                        Confirmed on {formatDate(b.confirmedAt)}
+                      </p>
+                    )}
+                  </div>
+                  <span className="booking-status dash-booking-status-completed">Completed</span>
+                </div>
+                {b.notes && <p className="dash-booking-notes">"{b.notes}"</p>}
               </li>
             ))}
           </ul>

@@ -24,6 +24,10 @@ const bookingSchema = new mongoose.Schema({
         type: String,
         trim: true,
         maxlength: 1000
+    },
+    confirmedAt: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true
