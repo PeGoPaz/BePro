@@ -20,17 +20,10 @@ import ServicesDashboardPage from "./pages/ServicesDashboardPage";
  */
 function MainLayout({ children }) {
   return (
-<<<<<<< HEAD
     <div className="page">
       <AppHeader />
       <main>{children}</main>
       <AppFooter />
-=======
-    <div classname='mx-4 sm:mx-[10%]'>
-      <Routes>
-        <Route path='/' element={<Home />} />
-      </Routes>
->>>>>>> parent of 7fb1803 (hz)
     </div>
   );
 }
