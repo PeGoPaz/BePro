@@ -237,6 +237,11 @@ router.patch(
       }
 
       booking.status = status;
+      if (status === "confirmed") {
+        booking.confirmedAt = new Date();
+      } else if (status === "cancelled" || status === "pending") {
+        booking.confirmedAt = null;
+      }
       await booking.save();
 
       return res.status(200).json({

@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import AppFooter from "./components/AppFooter";
 import AppHeader from "./components/AppHeader";
 import BookingPage from "./pages/BookingPage";
+import ContactPage from "./pages/ContactPage";
 import CustomerDashboardPage from "./pages/CustomerDashboardPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -42,6 +43,7 @@ function App() {
         <Route path="/providers/:providerId" element={<MainLayout><ProviderProfile /></MainLayout>} />
         <Route path="/services" element={<MainLayout><ServicesDashboardPage /></MainLayout>} />
         <Route path="/booking" element={<MainLayout><BookingPage /></MainLayout>} />
+        <Route path="/contact" element={<MainLayout><ContactPage /></MainLayout>} />
         <Route
           path="/dashboard/customer"
           element={<MainLayout><CustomerDashboardPage /></MainLayout>}

@@ -13,7 +13,7 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 router.get("/services/public", async (_req, res) => {
   try {
     const services = await Enterprise.find({ isArchived: { $ne: true } })
-      .populate("userId", "name")
+      .populate("userId", "name avatarUrl")
       .sort({ createdAt: -1 });
     return res.json(services);
   } catch (error) {
@@ -31,7 +31,7 @@ router.get("/services/public/:id", async (req, res) => {
     const service = await Enterprise.findOne({
       _id: id,
       isArchived: { $ne: true },
-    }).populate("userId", "name");
+    }).populate("userId", "name avatarUrl");
     if (!service) {
       return res.status(404).json({ message: "Service not found" });
     }
