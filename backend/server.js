@@ -9,7 +9,7 @@ import authRoutes from './routes/authRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 
-// app cpnfig
+// app cpnfi
 const app = express();
 const port = process.env.PORT || 10000;
 
