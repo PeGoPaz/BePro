@@ -16,12 +16,12 @@ const port = process.env.PORT || 10000;
 
 // middlewares
 app.use(
-    cors({
-        origin: process.env.CLIENT_ORIGIN, 
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-    })
+  cors({
+    origin: "https://bepro-us4x.onrender.com/", 
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
 );
 app.use(express.json({ limit: '5mb' }));
 
