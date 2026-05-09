@@ -11,7 +11,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 
 // app cpnfig
 const app = express();
-const port = process.env.PORT || 9000;
+const port = process.env.PORT || 10000;
 
 // middlewares
 app.use(
@@ -57,12 +57,13 @@ app.use('/api/booking', bookingRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
 app.use('/api/reviews', reviewRoutes);
 
+
+app.listen(port, '0.0.0.0', () => console.log(`Server is running on port `));
+
+
 mongoose
     .connect(mongoUri)
-    .then(() => {
-        app.listen(port, () => console.log(`Listening on localhost:${port}`));
-    })
+    .then(() => console.log('Connected to MongoDB'))
     .catch((error) => {
         console.error('MongoDB connection failed:', error.message);
-        process.exit(1);
     });
