@@ -10,12 +10,69 @@ const router = express.Router();
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+router.get("/services/public", async (_req, res) => {
+  try {
+    const services = await Enterprise.find({ isArchived: { $ne: true } })
+      .populate("userId", "name avatarUrl")
+      .sort({ createdAt: -1 });
+    return res.json(services);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch public services", error: error.message });
+  }
+});
+
+router.get("/services/public/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid service id" });
+    }
+
+    const service = await Enterprise.findOne({
+      _id: id,
+      isArchived: { $ne: true },
+    }).populate("userId", "name avatarUrl");
+    if (!service) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    return res.json(service);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch public service", error: error.message });
+  }
+});
+
+router.get("/providers/public/:providerId", async (req, res) => {
+  try {
+    const { providerId } = req.params;
+    if (!isValidObjectId(providerId)) {
+      return res.status(400).json({ message: "Invalid provider id" });
+    }
+
+    const provider = await User.findOne({ _id: providerId, role: "enterprise" })
+      .select("name createdAt avatarUrl");
+    if (!provider) {
+      return res.status(404).json({ message: "Provider not found" });
+    }
+
+    const services = await Enterprise.find({
+      userId: providerId,
+      isArchived: { $ne: true },
+    })
+      .sort({ createdAt: -1 });
+
+    return res.json({ provider, services });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch provider profile", error: error.message });
+  }
+});
+
 router.use(requireAuth, requireRole(["enterprise"]));
 
 router.post("/:enterpriseId/services", async (req, res) => {
   try {
     const { enterpriseId } = req.params;
-    const { subject, bio, price, availability } = req.body;
+    const { subject, bio, price, availability, category } = req.body;
 
     if (!isValidObjectId(enterpriseId)) {
       return res.status(400).json({ message: "Invalid enterprise id" });
@@ -40,6 +97,7 @@ router.post("/:enterpriseId/services", async (req, res) => {
     const service = await Enterprise.create({
       userId: enterpriseId,
       subject,
+      category,
       bio,
       price,
       availability,
@@ -108,7 +166,7 @@ router.patch("/:enterpriseId/services/:id", async (req, res) => {
       return res.status(400).json({ message: "Invalid service id" });
     }
 
-    const allowedFields = ["subject", "bio", "price", "availability"];
+    const allowedFields = ["subject", "category", "bio", "price", "availability", "isArchived"];
     const updates = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
     );
@@ -118,6 +176,15 @@ router.patch("/:enterpriseId/services/:id", async (req, res) => {
     }
     if (updates.price !== undefined && (typeof updates.price !== "number" || updates.price < 0)) {
       return res.status(400).json({ message: "price must be a non-negative number" });
+    }
+    if (updates.isArchived !== undefined && typeof updates.isArchived !== "boolean") {
+      return res.status(400).json({ message: "isArchived must be a boolean" });
+    }
+    if (updates.isArchived === true) {
+      updates.archivedAt = new Date();
+    }
+    if (updates.isArchived === false) {
+      updates.archivedAt = null;
     }
 
     const service = await Enterprise.findOneAndUpdate(

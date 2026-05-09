@@ -7,6 +7,7 @@ import 'dotenv/config';
 import enterpriseRoutes from './routes/enterpriseRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 // app cpnfig
 const app = express();
@@ -19,7 +20,31 @@ app.use(
         credentials: true,
     })
 );
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
+
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+    throw new Error('MONGO_URI is not configured');
+}
+
+app.use(
+    session({
+        name: 'bepro.sid',
+        secret: process.env.SESSION_SECRET || 'dev-session-secret',
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            httpOnly: true,
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+        },
+        store: MongoStore.create({
+            mongoUrl: mongoUri,
+            collectionName: 'sessions',
+        }),
+    })
+);
 
 const mongoUri = process.env.MONGO_URI;
 if (!mongoUri) {
@@ -53,6 +78,7 @@ app.get('/',(req,res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/booking', bookingRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 mongoose
     .connect(mongoUri)
