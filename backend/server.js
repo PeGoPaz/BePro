@@ -11,13 +11,16 @@ import reviewRoutes from './routes/reviewRoutes.js';
 
 // app cpnfi
 const app = express();
+app.set('trust proxy', 1); 
 const port = process.env.PORT || 10000;
 
 // middlewares
 app.use(
     cors({
-        origin: process.env.CLIENT_ORIGIN || true,
+        origin: process.env.CLIENT_ORIGIN, 
         credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
     })
 );
 app.use(express.json({ limit: '5mb' }));
@@ -34,10 +37,12 @@ app.use(
         secret: process.env.SESSION_SECRET || 'dev-session-secret',
         resave: false,
         saveUninitialized: false,
+        proxy: true, 
         cookie: {
             httpOnly: true,
-            sameSite: 'lax',
-            secure: process.env.NODE_ENV === 'production',
+         
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
+            secure: process.env.NODE_ENV === 'production', // На Render ДОЛЖНО быть true
             maxAge: 1000 * 60 * 60 * 24 * 7,
         },
         store: MongoStore.create({
