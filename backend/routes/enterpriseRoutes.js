@@ -17,7 +17,8 @@ router.get("/services/public", async (_req, res) => {
       .sort({ createdAt: -1 });
     return res.json(services);
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch public services", error: error.message });
+    console.error("Public services fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch public services" });
   }
 });
 
@@ -38,7 +39,8 @@ router.get("/services/public/:id", async (req, res) => {
 
     return res.json(service);
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch public service", error: error.message });
+    console.error("Public service fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch public service" });
   }
 });
 
@@ -63,7 +65,8 @@ router.get("/providers/public/:providerId", async (req, res) => {
 
     return res.json({ provider, services });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch provider profile", error: error.message });
+    console.error("Provider profile fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch provider profile" });
   }
 });
 
@@ -108,7 +111,8 @@ router.post("/:enterpriseId/services", async (req, res) => {
     if (error instanceof mongoose.Error.ValidationError) {
       return res.status(400).json({ message: error.message });
     }
-    return res.status(500).json({ message: "Failed to create service", error: error.message });
+    console.error("Service creation error:", error.message);
+    return res.status(500).json({ message: "Failed to create service" });
   }
 });
 
@@ -125,7 +129,8 @@ router.get("/:enterpriseId/services", async (req, res) => {
     const services = await Enterprise.find({ userId: enterpriseId }).sort({ createdAt: -1 });
     return res.json(services);
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch services", error: error.message });
+    console.error("Services fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch services" });
   }
 });
 
@@ -149,7 +154,8 @@ router.get("/:enterpriseId/services/:id", async (req, res) => {
 
     return res.json(service);
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch service", error: error.message });
+    console.error("Service fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch service" });
   }
 });
 
@@ -202,7 +208,8 @@ router.patch("/:enterpriseId/services/:id", async (req, res) => {
     if (error instanceof mongoose.Error.ValidationError) {
       return res.status(400).json({ message: error.message });
     }
-    return res.status(500).json({ message: "Failed to update service", error: error.message });
+    console.error("Service update error:", error.message);
+    return res.status(500).json({ message: "Failed to update service" });
   }
 });
 
@@ -229,7 +236,8 @@ router.delete("/:enterpriseId/services/:id", async (req, res) => {
 
     return res.json({ message: "Service deleted successfully" });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to delete service", error: error.message });
+    console.error("Service delete error:", error.message);
+    return res.status(500).json({ message: "Failed to delete service" });
   }
 });
 
@@ -253,7 +261,8 @@ router.get("/:enterpriseId/bookings", async (req, res) => {
 
     return res.json(bookings);
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch bookings", error: error.message });
+    console.error("Bookings fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch bookings" });
   }
 });
 
@@ -293,7 +302,8 @@ router.patch("/:enterpriseId/bookings/:id/status", async (req, res) => {
 
     return res.json(booking);
   } catch (error) {
-    return res.status(500).json({ message: "Failed to update booking status", error: error.message });
+    console.error("Booking status update error:", error.message);
+    return res.status(500).json({ message: "Failed to update booking status" });
   }
 });
 

@@ -14,12 +14,24 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    // Input validation
+    if (typeof name !== "string" || name.trim().length < 2 || name.length > 50) {
+      return res.status(400).json({ message: "Name must be between 2 and 50 characters" });
+    }
+
     if (!validator.isEmail(email)) {
       return res.status(400).json({ message: "Please provide a valid email address" });
     }
 
+    // Password strength validation
     if (password.length < 8) {
       return res.status(400).json({ message: "Password must be at least 8 characters long" });
+    }
+
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return res.status(400).json({ 
+        message: "Password must contain at least one uppercase letter, one lowercase letter, and one number" 
+      });
     }
 
     if (!["user", "enterprise"].includes(role)) {
@@ -31,10 +43,10 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ message: "User already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12); // Increased salt rounds
 
     const newUser = await User.create({
-      name,
+      name: name.trim(),
       email: email.toLowerCase(),
       password: hashedPassword,
       role,
@@ -51,7 +63,8 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Registration error:", error.message);
+    return res.status(500).json({ message: "Registration failed" });
   }
 });
 
@@ -81,19 +94,36 @@ router.post("/login", async (req, res) => {
       avatarUrl: user.avatarUrl || "",
     };
 
-    return res.status(200).json({
-      message: "Login successful",
-      session: req.session.user,
-      user: {
-        id: user._id,
-        name: user.name,
+    // Regenerate session ID to prevent session fixation
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error("Session regeneration failed:", err);
+        return res.status(500).json({ message: "Login failed" });
+      }
+
+      // Re-set user data after regeneration
+      req.session.user = {
+        id: user._id.toString(),
         email: user.email,
         role: user.role,
+        name: user.name,
         avatarUrl: user.avatarUrl || "",
-      },
+      };
+
+      return res.status(200).json({
+        message: "Login successful",
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          avatarUrl: user.avatarUrl || "",
+        },
+      });
     });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Login error:", error.message);
+    return res.status(500).json({ message: "Login failed" });
   }
 });
 
@@ -106,7 +136,8 @@ router.get("/me", requireAuth, async (req, res) => {
 
     return res.status(200).json({ user });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Get user error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch user" });
   }
 });
 
@@ -119,11 +150,22 @@ router.patch("/me/avatar", requireAuth, async (req, res) => {
     }
 
     const trimmedAvatar = typeof avatarUrl === "string" ? avatarUrl.trim() : "";
-    if (trimmedAvatar && !trimmedAvatar.startsWith("data:image/")) {
-      return res.status(400).json({ message: "avatarUrl must be a valid image data URL" });
+    
+    // Validate data URL format more strictly
+    if (trimmedAvatar) {
+      if (!trimmedAvatar.startsWith("data:image/")) {
+        return res.status(400).json({ message: "avatarUrl must be a valid image data URL" });
+      }
+      
+      // Only allow specific image types
+      const allowedTypes = ["data:image/png", "data:image/jpeg", "data:image/jpg", "data:image/webp"];
+      if (!allowedTypes.some(type => trimmedAvatar.startsWith(type))) {
+        return res.status(400).json({ message: "Only PNG, JPEG, and WebP images are allowed" });
+      }
     }
-    if (trimmedAvatar.length > 4_000_000) {
-      return res.status(400).json({ message: "Avatar image is too large" });
+    
+    if (trimmedAvatar.length > 2_000_000) { // Reduced from 4MB to 2MB
+      return res.status(400).json({ message: "Avatar image is too large (max 2MB)" });
     }
 
     const user = await User.findByIdAndUpdate(
@@ -140,14 +182,16 @@ router.patch("/me/avatar", requireAuth, async (req, res) => {
 
     return res.status(200).json({ user });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Avatar update error:", error.message);
+    return res.status(500).json({ message: "Failed to update avatar" });
   }
 });
 
 router.post("/logout", requireAuth, (req, res) => {
   req.session.destroy((error) => {
     if (error) {
-      return res.status(500).json({ message: "Could not logout", error: error.message });
+      console.error("Logout error:", error);
+      return res.status(500).json({ message: "Logout failed" });
     }
 
     res.clearCookie("bepro.sid");

@@ -59,7 +59,8 @@ router.post("/", requireAuth, requireRole(["user"]), async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({ message: "You have already reviewed this service." });
     }
-    return res.status(500).json({ message: "Server error.", error: error.message });
+    console.error("Review error:", error.message);
+    return res.status(500).json({ message: "An error occurred." });
   }
 });
 
@@ -86,7 +87,8 @@ router.get("/provider/:providerId", async (req, res) => {
 
     return res.status(200).json({ reviews, count, averageRating: avg });
   } catch (error) {
-    return res.status(500).json({ message: "Server error.", error: error.message });
+    console.error("Review error:", error.message);
+    return res.status(500).json({ message: "An error occurred." });
   }
 });
 

@@ -53,7 +53,8 @@ router.post("/", requireRole(["user"]), async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Booking error:", error.message);
+    return res.status(500).json({ message: "An error occurred" });
   }
 });
 
@@ -95,7 +96,8 @@ router.get("/", async (req, res) => {
 
     return res.status(200).json(bookings);
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Booking error:", error.message);
+    return res.status(500).json({ message: "An error occurred" });
   }
 });
 
@@ -133,7 +135,8 @@ router.get("/:id", async (req, res) => {
 
     return res.status(200).json(booking);
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Booking error:", error.message);
+    return res.status(500).json({ message: "An error occurred" });
   }
 });
 
@@ -179,7 +182,8 @@ router.patch("/:id", requireRole(["user"]), async (req, res) => {
       booking: updatedBooking,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Booking error:", error.message);
+    return res.status(500).json({ message: "An error occurred" });
   }
 });
 
@@ -206,7 +210,8 @@ router.delete("/:id", requireRole(["user"]), async (req, res) => {
 
     return res.status(200).json({ message: "Booking deleted successfully" });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Booking error:", error.message);
+    return res.status(500).json({ message: "An error occurred" });
   }
 });
 
@@ -249,7 +254,8 @@ router.patch(
         booking,
       });
     } catch (error) {
-      return res.status(500).json({ message: "Server error", error: error.message });
+      console.error("Booking status update error:", error.message);
+      return res.status(500).json({ message: "Failed to update booking status" });
     }
   }
 );
